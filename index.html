@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - geometry - vertex colors</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				color: #808080;
+				font-family:Monospace;
+				font-size:13px;
+				text-align:center;
+
+				background-color: #fff;
+				margin: 0px;
+				overflow: hidden;
+			}
+
+			#info {
+				position: absolute;
+				top: 0px; width: 100%;
+				padding: 5px;
+			}
+
+			a {
+
+				color: #0080ff;
+			}
+
+		</style>
+	</head>
+	<body>
+
+		<div id="container"></div>
+		<div id="info"><a href="http://threejs.org" target="_blank">three.js</a> webgl - hexplanet</div>
+
+		<script src="js/three.min.js"></script>
+		<script src="js/controls/OrbitControls.js"></script>
+		<script src="js/Detector.js"></script>
+		<script src="js/libs/stats.min.js"></script>
+
+		<script>
+
+			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+			var container, stats;
+
+			var camera, scene, renderer;
+
+			var mesh, group1, group2, group3, light;
+
+			var mouseX = 0, mouseY = 0;
+
+			var windowHalfX = window.innerWidth / 2;
+			var windowHalfY = window.innerHeight / 2;
+
+			var mouse2D,projector;
+
+			var clock = new THREE.Clock();
+
+			init();
+			animate();
+
+			function generateLabelMaterial( text ) {
+
+				var x = document.createElement( "canvas" );
+				var xc = x.getContext( "2d" );
+				x.width = 32;
+				x.height = 32;
+
+				xc.fillStyle = "rgba( 0, 0, 0, 0.95 )";
+				xc.fillRect( 0, 0, 128, 32 );
+
+				xc.fillStyle = "white";
+				xc.font = "12pt arial bold";
+				xc.fillText( text, 2, 22 );
+
+				var map = new THREE.Texture( x );
+				map.needsUpdate = true;
+
+				var material = new THREE.MeshBasicMaterial( { map: map, transparent: true } );
+				return material;
+
+			}
+
+	 		function perpendicular( vector )
+	        {
+	           // static const Real fSquareZero = (Real)(1e-06 * 1e-06);
+
+				var UNIT_X = new THREE.Vector3(1,0,0);
+				var UNIT_Y = new THREE.Vector3(0,1,0);
+				var perp = vector.clone();
+	             perp = perp.crossSelf( UNIT_X );
+
+	            // Check length
+	            if( perp.lengthSq() < 0.01 )
+	            {
+	                // This vector is the Y axis multiplied by a scalar, so we have
+	                //   to use another axis.
+	                perp = vector.clone();
+	                perp = perp.crossSelf( UNIT_Y );
+	            }
+
+	            return perp;
+	        }
+
+			function init() {
+
+				container = document.getElementById( 'container' );
+
+				camera = new THREE.PerspectiveCamera( 20, window.innerWidth / window.innerHeight, 1, 10000 );
+				camera.position.z = 1800;
+
+				controls = new THREE.OrbitControls( camera );
+				scene = new THREE.Scene();
+
+			//	light = new THREE.DirectionalLight( 0xffffff );
+		//		light.position.set( 0, 0, 1 );
+	//			scene.add( light );
+
+				var light = new THREE.AmbientLight( 0xffffff );
+ 				scene.add( light );
+				// shadow
+
+				mouse2D = new THREE.Vector3( 0, 10000, 0.5 );
+				projector = new THREE.Projector();
+
+				var faceIndices = [ 'a', 'b', 'c', 'd' ];
+
+				var color, f, f2, f3, p, n, vertexIndex,
+
+				radius = 200,
+
+				geometry_orig  = new THREE.IcosahedronGeometry( radius, 0 ),
+				geometry_1 = new THREE.IcosahedronGeometry( radius, 0 ),
+				geometry_2 = new THREE.IcosahedronGeometry( radius, 1 );
+
+		   		hexoplanetGeometry = new THREE.Geometry();
+            	hexoplanetGeometry.dynamic = true;
+
+				
+
+				console.log("orig = " + geometry_orig.faces.length);
+				console.log("geometry_1 = " + geometry_1.faces.length);
+				console.log("geometry_2 = " + geometry_2.faces.length);
+
+				hexoplanetGeometry.vertices = geometry_1.vertices;
+				hexoplanetGeometry.faces = geometry_1.faces;
+				for(var pataticas = 0; pataticas < 5; pataticas++)
+				{
+
+					var aNeighborsInfo  = new Array();
+
+					for ( var i = 0; i < hexoplanetGeometry.faces.length; i ++ )
+					{
+						f  = hexoplanetGeometry.faces[ i ];
+						n = ( f instanceof THREE.Face3 ) ? 3 : 4;
+
+						var centerVertex = new THREE.Vector3(0,0,0);
+						var aCurrentVertexID  = new Array();
+
+						for( var j = 0; j < n; j++ )
+						{
+							vertexIndex = f[ faceIndices[ j ] ];
+							p = geometry_1.vertices[ vertexIndex ];
+							centerVertex.addSelf(p);
+
+							aCurrentVertexID.push(vertexIndex);
+						}
+
+						centerVertex.divideScalar( n );
+
+						hexoplanetGeometry.vertices.push(centerVertex);
+
+						//Store neighbords info
+						for(var id = 0; id < aCurrentVertexID.length; id++)
+						{	
+
+							var directionVector = hexoplanetGeometry.vertices[0].clone();
+							directionVector = perpendicular(directionVector);
+
+							var v1 = directionVector.subSelf(geometry_1.vertices[ aCurrentVertexID[id] ]);		
+							var nrm = centerVertex.clone();
+							var v2 = centerVertex.clone();
+							v2 = v2.subSelf(geometry_1.vertices[ aCurrentVertexID[id] ]);			
+							nrm = nrm.normalize();
+							v1 = v1.normalize();
+							v2 = v2.normalize();
+
+							var angle = Math.acos( v1.dot( v2 ) );
+							var dir = nrm.dot( v1.crossSelf( v2 ) );
+							if (dir < 0.0) angle = 3.14 + (3.14 - angle);
+
+							if(aNeighborsInfo[aCurrentVertexID[id]] == undefined) aNeighborsInfo[aCurrentVertexID[id]] = new Array();
+
+							var neighbordsObject = new Object();
+							neighbordsObject.vertexID = hexoplanetGeometry.vertices.length - 1;
+							neighbordsObject.angle = angle;
+							aNeighborsInfo[aCurrentVertexID[id]].push(neighbordsObject);
+						}
+
+					}
+
+					for ( var i = 0; i < hexoplanetGeometry.vertices.length; i ++ )
+					{
+						hexoplanetGeometry.vertices[i].normalize();
+						hexoplanetGeometry.vertices[i].multiplyScalar(radius);
+					}
+					hexoplanetGeometry.faces.splice(0, hexoplanetGeometry.faces.length);	
+					var colorrrrr = 0;
+					for ( var i = 0; i < aNeighborsInfo.length; i ++ ) 
+					{
+						aNeighborsInfo[i].sort(function(a,b){return a.angle > b.angle})
+						colorrrrr+=1/aNeighborsInfo.length;
+						var random_length = radius + Math.random()*50;
+						for ( var j = 0; j < aNeighborsInfo[i].length; j ++ ) 
+						{
+								var newFace = new THREE.Face3(i,aNeighborsInfo[i][j].vertexID,aNeighborsInfo[i][(j + 1) % aNeighborsInfo[i].length].vertexID);
+
+								color = new THREE.Color( 0xffffff );
+								color.setHSV( colorrrrr, 1.0, 1.0 );
+
+								newFace.vertexColors[ 0 ] = color;
+								newFace.vertexColors[ 1 ] = color;
+								newFace.vertexColors[ 2 ] = color;
+								hexoplanetGeometry.faces.push(newFace);
+
+								hexoplanetGeometry.faceVertexUvs[ 0 ].push( [
+										new THREE.UV( 0.5, 1 ),
+										new THREE.UV(0, 0 ),
+										new THREE.UV( 1, 0 )
+									] ); 
+						
+							if (pataticas == 4 && false)
+							{
+								
+								var vert1 = hexoplanetGeometry.vertices[i].clone();
+								vert1.normalize();
+								vert1.multiplyScalar(random_length);
+								var vert2 = hexoplanetGeometry.vertices[aNeighborsInfo[i][j].vertexID].clone();
+								vert2.normalize();
+								vert2.multiplyScalar(random_length);
+								var vert3 = hexoplanetGeometry.vertices[aNeighborsInfo[i][(j + 1) % aNeighborsInfo[i].length].vertexID].clone();
+								vert3.normalize();
+								vert3.multiplyScalar(random_length);
+
+								hexoplanetGeometry.vertices.push(vert1);
+								hexoplanetGeometry.vertices.push(vert2);
+								hexoplanetGeometry.vertices.push(vert3);
+
+								//TOP
+								var newFace2 = new THREE.Face3(hexoplanetGeometry.vertices.length - 3,hexoplanetGeometry.vertices.length - 2,hexoplanetGeometry.vertices.length - 1);
+								color2 = new THREE.Color( 0xffffff );
+								color2.setHSV( colorrrrr, 1.0, 1.0 );
+								newFace2.vertexColors[ 0 ] = color2;
+								newFace2.vertexColors[ 1 ] = color2;
+								newFace2.vertexColors[ 2 ] = color2;
+								hexoplanetGeometry.faces.push(newFace2);
+								hexoplanetGeometry.faceVertexUvs[ 0 ].push( [
+										new THREE.UV( 0.5, 1 ),
+										new THREE.UV(0, 0 ),
+										new THREE.UV( 1, 0 )
+									] ); 
+
+								var newFace3 = new THREE.Face3(hexoplanetGeometry.vertices.length - 2,aNeighborsInfo[i][j].vertexID, hexoplanetGeometry.vertices.length - 1);
+								color2 = new THREE.Color( 0xffffff );
+								color2.setHSV( colorrrrr, 1.0, 1.0 );
+								newFace3.vertexColors[ 0 ] = color2;
+								newFace3.vertexColors[ 1 ] = color2;
+								newFace3.vertexColors[ 2 ] = color2;
+								hexoplanetGeometry.faces.push(newFace3);
+								hexoplanetGeometry.faceVertexUvs[ 0 ].push( [
+										new THREE.UV( 0.5, 1 ),
+										new THREE.UV(0, 0 ),
+										new THREE.UV( 1, 0 )
+									] ); 
+
+								var newFace4 = new THREE.Face3(aNeighborsInfo[i][j].vertexID,aNeighborsInfo[i][(j + 1) % aNeighborsInfo[i].length].vertexID,hexoplanetGeometry.vertices.length - 1);
+								color2 = new THREE.Color( 0xffffff );
+								color2.setHSV( colorrrrr, 1.0, 1.0 );
+								newFace4.vertexColors[ 0 ] = color2;
+								newFace4.vertexColors[ 1 ] = color2;
+								newFace4.vertexColors[ 2 ] = color2;
+								hexoplanetGeometry.faces.push(newFace4);
+								hexoplanetGeometry.faceVertexUvs[ 0 ].push( [
+										new THREE.UV( 0.5, 1 ),
+										new THREE.UV(0, 0 ),
+										new THREE.UV( 1, 0 )
+									] ); 
+
+
+							}
+						}
+					}
+					//console.log(hexoplanetGeometry.vertices);
+					//console.log(aNeighborsInfo);
+
+				// Project to sphere	
+				/*	for ( var i = 0; i < hexoplanetGeometry.vertices.length; i ++ )
+					{
+						hexoplanetGeometry.vertices[i].normalize();
+						hexoplanetGeometry.vertices[i].multiplyScalar(radius);
+//						p *= kPlanetRadius;
+//						(*ti).m_vertPos = p;
+					}*/
+
+				}
+
+		/*		for ( var i = 0; i < hexoplanetGeometry.vertices.length; i ++ )
+					{
+						hexoplanetGeometry.vertices[i].normalize();
+						hexoplanetGeometry.vertices[i].multiplyScalar(radius + 10 - Math.random()*20);
+//						p *= kPlanetRadius;
+//						(*ti).m_vertPos = p;
+					}*/
+
+				hexoplanetGeometry.computeFaceNormals();
+				hexoplanetGeometry.computeVertexNormals();
+				hexoplanetGeometry.computeCentroids();
+				hexoplanetGeometry.computeTangents();
+
+				hexoplanetGeometry.computeBoundingBox();
+				hexoplanetGeometry.computeBoundingSphere();
+			
+				
+				var grass_dirt = loadTexture( 'textures/hextileprueba.png' ),
+
+				//mesh = new THREE.Mesh( hexoplanetGeometry, new THREE.MeshLambertMaterial( { color: 0xffffff, shading: THREE.FlatShading, vertexColors: THREE.VertexColors }) );
+				mesh = new THREE.Mesh( hexoplanetGeometry, grass_dirt );
+				mesh.position.y = 0;
+				mesh.position.x = 0;
+				scene.add( mesh );
+		
+
+
+			
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				container.appendChild( renderer.domElement );
+
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				container.appendChild( stats.domElement );
+
+				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+				document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+
+				//
+
+				window.addEventListener( 'resize', onWindowResize, false );
+
+			}
+
+			function loadTexture( path ) {
+
+				var image = new Image();
+				image.onload = function () { texture.needsUpdate = true; };
+				image.src = path;
+
+				var texture  = new THREE.Texture( image, new THREE.UVMapping(), THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.NearestFilter, THREE.LinearMipMapLinearFilter );
+
+				return new THREE.MeshLambertMaterial( { map: texture, ambient: 0xbbbbbb , vertexColors: THREE.VertexColors} );
+
+			}
+			function onWindowResize() {
+
+				windowHalfX = window.innerWidth / 2;
+				windowHalfY = window.innerHeight / 2;
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			function onDocumentMouseMove( event ) {
+
+				mouseX = ( event.clientX - windowHalfX );
+				mouseY = ( event.clientY - windowHalfY );
+
+				mouse2D.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+				mouse2D.y =- ( event.clientY / window.innerHeight ) * 2 + 1;
+
+
+
+			}
+
+			function onDocumentMouseDown( event ) {
+
+				event.preventDefault();
+
+			/*	var ray = projector.pickingRay( mouse2D.clone(), camera );	
+				var intersects = ray.intersectObjects( scene.children );
+
+				console.log(intersects);
+
+				if ( intersects.length > 0 ) {
+
+					console.log(intersects[0].face.centroid);
+
+
+					cubeGeo = new THREE.CubeGeometry( 5, 5, 5 );
+					cubeMaterial = new THREE.MeshLambertMaterial( { color: 0x00ff80, ambient: 0x00ff80, shading: THREE.FlatShading } );
+					cubeMaterial.color.setHSV( 0.1, 0.7, 1.0 );
+					cubeMaterial.ambient = cubeMaterial.color;
+
+					var voxel = new THREE.Mesh( cubeGeo, cubeMaterial );
+					voxel.position.copy( intersects[0].face.centroid );
+					voxel.matrixAutoUpdate = false;
+					voxel.updateMatrix();
+					scene.add( voxel );
+				}*/
+			}
+
+			//
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				render();
+				stats.update();
+
+			}
+
+			function render() {
+
+				/*camera.position.x += ( mouseX  ) * 0.05;
+				camera.position.y += ( mouseY ) * 0.05;
+
+				camera.lookAt( scene.position );*/
+
+			var delta = clock.getDelta();
+
+
+
+			controls.update( delta );
+
+				renderer.render( scene, camera );
+
+			}
+
+		</script>
+
+	</body>
+</html>
