@@ -11,7 +11,7 @@
 				font-size:13px;
 				text-align:center;
 
-				background-color: #fff;
+				background-color: #000;
 				margin: 0px;
 				overflow: hidden;
 			}
@@ -37,6 +37,7 @@
 		<script src="js/three.min.js"></script>
 		<script src="js/controls/OrbitControls.js"></script>
 		<script src="js/Detector.js"></script>
+		<script src='js/libs/dat.gui.min.js'></script>
 		<script src="js/libs/stats.min.js"></script>
 
 		<script>
@@ -57,6 +58,9 @@
 			var mouse2D,projector;
 
 			var clock = new THREE.Clock();
+
+			var gui, guiConfig;
+
 
 			init();
 			animate();
@@ -127,10 +131,10 @@
 
 				var faceIndices = [ 'a', 'b', 'c', 'd' ];
 
-				var color, f, f2, f3, p, n, vertexIndex,
+				var color, f, f2, f3, p, n, vertexIndex;
 
-				radius = 200,
-
+				var radius = 200;
+				var iNumSubdiv = 5;
 				geometry_orig  = new THREE.IcosahedronGeometry( radius, 0 ),
 				geometry_1 = new THREE.IcosahedronGeometry( radius, 0 ),
 				geometry_2 = new THREE.IcosahedronGeometry( radius, 1 );
@@ -146,7 +150,7 @@
 
 				hexoplanetGeometry.vertices = geometry_1.vertices;
 				hexoplanetGeometry.faces = geometry_1.faces;
-				for(var pataticas = 0; pataticas < 5; pataticas++)
+				for(var pataticas = 0; pataticas < iNumSubdiv; pataticas++)
 				{
 
 					var aNeighborsInfo  = new Array();
@@ -215,6 +219,8 @@
 						var random_length = radius + Math.random()*50;
 						for ( var j = 0; j < aNeighborsInfo[i].length; j ++ ) 
 						{
+							if (pataticas < (iNumSubdiv - 1))
+							{
 								var newFace = new THREE.Face3(i,aNeighborsInfo[i][j].vertexID,aNeighborsInfo[i][(j + 1) % aNeighborsInfo[i].length].vertexID);
 
 								color = new THREE.Color( 0xffffff );
@@ -230,8 +236,8 @@
 										new THREE.UV(0, 0 ),
 										new THREE.UV( 1, 0 )
 									] ); 
-						
-							if (pataticas == 4 && false)
+							}
+							else
 							{
 								
 								var vert1 = hexoplanetGeometry.vertices[i].clone();
@@ -291,6 +297,8 @@
 
 							}
 						}
+
+
 					}
 					//console.log(hexoplanetGeometry.vertices);
 					//console.log(aNeighborsInfo);
@@ -321,7 +329,8 @@
 
 				hexoplanetGeometry.computeBoundingBox();
 				hexoplanetGeometry.computeBoundingSphere();
-			
+				
+				//hexoplanetGeometry.mergeVertices();
 				
 				var grass_dirt = loadTexture( 'textures/hextileprueba.png' ),
 
@@ -351,6 +360,68 @@
 				//
 
 				window.addEventListener( 'resize', onWindowResize, false );
+
+				// ----------------------------------
+				// GUI
+				// ----------------------------------
+				guiConfig = {
+				  bShowLight : false,
+				  bShowSSAO : false,
+				  bShowVertexColor : true,
+				  bShowTexture : true,
+				  bNumSubdivisions : 5,
+				  Recreate : function() {  }
+				};
+
+
+				gui = new dat.GUI();
+
+				var guiScene = gui.addFolder('Scene');
+				guiScene.open();
+				guiScene.add(guiConfig, 'bShowLight').onChange(function(){
+
+					if ( guiConfig.bShowLight ) {
+						
+					} else {
+						
+					}
+
+				}).name( 'Light' );;
+
+
+				guiScene.add(guiConfig, 'bShowSSAO').onChange(function(){
+
+					if ( guiConfig.bShowSSAO ) {
+						
+					} else {
+						
+					}
+
+				}).name( 'SSAO' );;
+
+				var guiMaterial = gui.addFolder('Material');
+				guiMaterial.open();
+				guiMaterial.add(guiConfig, 'bShowVertexColor').onChange(function(){
+
+					if ( guiConfig.bShowVertexColor ) {
+						
+					} else {
+						
+					}
+
+				}).name( 'VertexColor' );;
+				guiMaterial.add(guiConfig, 'bShowTexture').onChange(function(){
+
+					if ( guiConfig.bShowTexture ) {
+						
+					} else {
+						
+					}
+
+				}).name( 'Texture' );;
+
+				gui.add(guiConfig, 'bNumSubdivisions', 1, 8, 1.0 ).name( 'Subdivisions' );
+				gui.add(guiConfig, 'Recreate');
 
 			}
 
