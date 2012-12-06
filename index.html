@@ -61,6 +61,7 @@
 
 			var gui, guiConfig;
 
+			var g_light;
 
 			init();
 			animate();
@@ -118,13 +119,23 @@
 				controls = new THREE.OrbitControls( camera );
 				scene = new THREE.Scene();
 
-			//	light = new THREE.DirectionalLight( 0xffffff );
-		//		light.position.set( 0, 0, 1 );
-	//			scene.add( light );
+				g_light = new THREE.DirectionalLight( 0xffffff );
+				g_light.position.set( 0, 0, 1 );
+				scene.add( g_light );
 
-				var light = new THREE.AmbientLight( 0xffffff );
- 				scene.add( light );
+				var ambientLight = new THREE.AmbientLight( 0xffffff );
+ 				scene.add( ambientLight );
 				// shadow
+
+				var image = new Image();
+				image.onload = function () { texture.needsUpdate = true; };
+				image.src = 'textures/hextileprueba.png';
+				var texture  = new THREE.Texture( image, new THREE.UVMapping(), THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.NearestFilter, THREE.LinearMipMapLinearFilter );
+
+				var g_material11 = new THREE.MeshLambertMaterial( {  map: texture, ambient: 0xbbbbbb , vertexColors: THREE.VertexColors });
+				var g_material10 = new THREE.MeshLambertMaterial( {  map: texture, ambient: 0xbbbbbb });
+				var g_material01 = new THREE.MeshLambertMaterial( {  ambient: 0xbbbbbb , vertexColors: THREE.VertexColors });
+				var g_material00 = new THREE.MeshLambertMaterial( {  ambient: 0xbbbbbb});
 
 				mouse2D = new THREE.Vector3( 0, 10000, 0.5 );
 				projector = new THREE.Projector();
@@ -332,10 +343,7 @@
 				
 				//hexoplanetGeometry.mergeVertices();
 				
-				var grass_dirt = loadTexture( 'textures/hextileprueba.png' ),
-
-				//mesh = new THREE.Mesh( hexoplanetGeometry, new THREE.MeshLambertMaterial( { color: 0xffffff, shading: THREE.FlatShading, vertexColors: THREE.VertexColors }) );
-				mesh = new THREE.Mesh( hexoplanetGeometry, grass_dirt );
+				mesh = new THREE.Mesh( hexoplanetGeometry, g_material11 );
 				mesh.position.y = 0;
 				mesh.position.x = 0;
 				scene.add( mesh );
@@ -365,7 +373,7 @@
 				// GUI
 				// ----------------------------------
 				guiConfig = {
-				  bShowLight : false,
+				  bShowLight : true,
 				  bShowSSAO : false,
 				  bShowVertexColor : true,
 				  bShowTexture : true,
@@ -381,9 +389,9 @@
 				guiScene.add(guiConfig, 'bShowLight').onChange(function(){
 
 					if ( guiConfig.bShowLight ) {
-						
+						scene.add( g_light );
 					} else {
-						
+						scene.remove( g_light );
 					}
 
 				}).name( 'Light' );;
@@ -404,38 +412,27 @@
 				guiMaterial.add(guiConfig, 'bShowVertexColor').onChange(function(){
 
 					if ( guiConfig.bShowVertexColor ) {
-						
+						mesh.material =  guiConfig.bShowTexture ? g_material11:g_material01;
 					} else {
-						
+						mesh.material =  guiConfig.bShowTexture ? g_material10:g_material00;
 					}
 
 				}).name( 'VertexColor' );;
 				guiMaterial.add(guiConfig, 'bShowTexture').onChange(function(){
 
 					if ( guiConfig.bShowTexture ) {
-						
+						mesh.material =  guiConfig.bShowVertexColor ? g_material11:g_material10;
 					} else {
-						
+						mesh.material =  guiConfig.bShowVertexColor ? g_material01:g_material00;				
 					}
 
 				}).name( 'Texture' );;
 
-				gui.add(guiConfig, 'bNumSubdivisions', 1, 8, 1.0 ).name( 'Subdivisions' );
+				gui.add(guiConfig, 'bNumSubdivisions', 0, 8 ).name( 'Subdivisions' ).step(1);
 				gui.add(guiConfig, 'Recreate');
 
 			}
 
-			function loadTexture( path ) {
-
-				var image = new Image();
-				image.onload = function () { texture.needsUpdate = true; };
-				image.src = path;
-
-				var texture  = new THREE.Texture( image, new THREE.UVMapping(), THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.NearestFilter, THREE.LinearMipMapLinearFilter );
-
-				return new THREE.MeshLambertMaterial( { map: texture, ambient: 0xbbbbbb , vertexColors: THREE.VertexColors} );
-
-			}
 			function onWindowResize() {
 
 				windowHalfX = window.innerWidth / 2;
