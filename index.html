@@ -63,6 +63,7 @@
 
 			var g_light;
 
+			var g_hexoplanetGeometry;
 			init();
 			animate();
 
@@ -140,17 +141,117 @@
 				mouse2D = new THREE.Vector3( 0, 10000, 0.5 );
 				projector = new THREE.Projector();
 
+							//hexoplanetGeometry.mergeVertices();
+				
+				g_hexoplanetGeometry = createHexSphere(5);
+				mesh = new THREE.Mesh( g_hexoplanetGeometry, g_material11 );
+				mesh.position.y = 0;
+				mesh.position.x = 0;
+				scene.add( mesh );			
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				container.appendChild( renderer.domElement );
+
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				container.appendChild( stats.domElement );
+
+				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+				document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+
+				//
+
+				window.addEventListener( 'resize', onWindowResize, false );
+
+				// ----------------------------------
+				// GUI
+				// ----------------------------------
+				guiConfig = {
+				  bShowLight : true,
+				  bShowSSAO : false,
+				  bShowVertexColor : true,
+				  bShowTexture : true,
+				  bNumSubdivisions : 5,
+				  Recreate : function() { 
+				  					scene.remove(mesh);
+				  					g_hexoplanetGeometry = createHexSphere(this.bNumSubdivisions);
+									mesh = new THREE.Mesh( g_hexoplanetGeometry, g_material11 );
+									mesh.position.y = 0;
+									mesh.position.x = 0;
+									scene.add( mesh );			
+
+									 }
+				};
+
+
+				gui = new dat.GUI();
+
+				var guiScene = gui.addFolder('Scene');
+				guiScene.open();
+				guiScene.add(guiConfig, 'bShowLight').onChange(function(){
+
+					if ( guiConfig.bShowLight ) {
+						scene.add( g_light );
+					} else {
+						scene.remove( g_light );
+					}
+
+				}).name( 'Light' );;
+
+
+				guiScene.add(guiConfig, 'bShowSSAO').onChange(function(){
+
+					if ( guiConfig.bShowSSAO ) {
+						
+					} else {
+						
+					}
+
+				}).name( 'SSAO' );;
+
+				var guiMaterial = gui.addFolder('Material');
+				guiMaterial.open();
+				guiMaterial.add(guiConfig, 'bShowVertexColor').onChange(function(){
+
+					if ( guiConfig.bShowVertexColor ) {
+						mesh.material =  guiConfig.bShowTexture ? g_material11:g_material01;
+					} else {
+						mesh.material =  guiConfig.bShowTexture ? g_material10:g_material00;
+					}
+
+				}).name( 'VertexColor' );;
+				guiMaterial.add(guiConfig, 'bShowTexture').onChange(function(){
+
+					if ( guiConfig.bShowTexture ) {
+						mesh.material =  guiConfig.bShowVertexColor ? g_material11:g_material10;
+					} else {
+						mesh.material =  guiConfig.bShowVertexColor ? g_material01:g_material00;				
+					}
+
+				}).name( 'Texture' );;
+
+				gui.add(guiConfig, 'bNumSubdivisions', 1, 7 ).name( 'Subdivisions' ).step(1);
+				gui.add(guiConfig, 'Recreate');
+				
+			}
+
+
+			function createHexSphere(iNumSubdiv)
+			{
 				var faceIndices = [ 'a', 'b', 'c', 'd' ];
 
 				var color, f, f2, f3, p, n, vertexIndex;
 
 				var radius = 200;
-				var iNumSubdiv = 5;
+				//var iNumSubdiv = 5;
 				geometry_orig  = new THREE.IcosahedronGeometry( radius, 0 ),
 				geometry_1 = new THREE.IcosahedronGeometry( radius, 0 ),
 				geometry_2 = new THREE.IcosahedronGeometry( radius, 1 );
 
-		   		hexoplanetGeometry = new THREE.Geometry();
+		   		var hexoplanetGeometry = new THREE.Geometry();
             	hexoplanetGeometry.dynamic = true;
 
 				
@@ -340,99 +441,9 @@
 
 				hexoplanetGeometry.computeBoundingBox();
 				hexoplanetGeometry.computeBoundingSphere();
-				
-				//hexoplanetGeometry.mergeVertices();
-				
-				mesh = new THREE.Mesh( hexoplanetGeometry, g_material11 );
-				mesh.position.y = 0;
-				mesh.position.x = 0;
-				scene.add( mesh );
-		
 
-
-			
-
-				renderer = new THREE.WebGLRenderer( { antialias: true } );
-				renderer.setSize( window.innerWidth, window.innerHeight );
-
-				container.appendChild( renderer.domElement );
-
-				stats = new Stats();
-				stats.domElement.style.position = 'absolute';
-				stats.domElement.style.top = '0px';
-				container.appendChild( stats.domElement );
-
-				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
-				document.addEventListener( 'mousedown', onDocumentMouseDown, false );
-
-				//
-
-				window.addEventListener( 'resize', onWindowResize, false );
-
-				// ----------------------------------
-				// GUI
-				// ----------------------------------
-				guiConfig = {
-				  bShowLight : true,
-				  bShowSSAO : false,
-				  bShowVertexColor : true,
-				  bShowTexture : true,
-				  bNumSubdivisions : 5,
-				  Recreate : function() {  }
-				};
-
-
-				gui = new dat.GUI();
-
-				var guiScene = gui.addFolder('Scene');
-				guiScene.open();
-				guiScene.add(guiConfig, 'bShowLight').onChange(function(){
-
-					if ( guiConfig.bShowLight ) {
-						scene.add( g_light );
-					} else {
-						scene.remove( g_light );
-					}
-
-				}).name( 'Light' );;
-
-
-				guiScene.add(guiConfig, 'bShowSSAO').onChange(function(){
-
-					if ( guiConfig.bShowSSAO ) {
-						
-					} else {
-						
-					}
-
-				}).name( 'SSAO' );;
-
-				var guiMaterial = gui.addFolder('Material');
-				guiMaterial.open();
-				guiMaterial.add(guiConfig, 'bShowVertexColor').onChange(function(){
-
-					if ( guiConfig.bShowVertexColor ) {
-						mesh.material =  guiConfig.bShowTexture ? g_material11:g_material01;
-					} else {
-						mesh.material =  guiConfig.bShowTexture ? g_material10:g_material00;
-					}
-
-				}).name( 'VertexColor' );;
-				guiMaterial.add(guiConfig, 'bShowTexture').onChange(function(){
-
-					if ( guiConfig.bShowTexture ) {
-						mesh.material =  guiConfig.bShowVertexColor ? g_material11:g_material10;
-					} else {
-						mesh.material =  guiConfig.bShowVertexColor ? g_material01:g_material00;				
-					}
-
-				}).name( 'Texture' );;
-
-				gui.add(guiConfig, 'bNumSubdivisions', 0, 8 ).name( 'Subdivisions' ).step(1);
-				gui.add(guiConfig, 'Recreate');
-
+				return hexoplanetGeometry;
 			}
-
 			function onWindowResize() {
 
 				windowHalfX = window.innerWidth / 2;
