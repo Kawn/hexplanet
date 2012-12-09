@@ -110,6 +110,18 @@
 	            return perp;
 	        }
 
+
+			function HexData () {
+			    this.aFaces = new Array();
+			    this.aTopFaces = new Array();
+			    this.iCenterId = 0;
+			    this.vCenter =  new THREE.Vector3(0,0,0);
+			    this.aNeighbors= new Array();
+			    this.fHeight = 100.0;
+			}
+
+			var g_HexPlanetData;
+
 			function init() {
 
 				container = document.getElementById( 'container' );
@@ -128,6 +140,7 @@
  				scene.add( ambientLight );
 				// shadow
 
+				var iNumSubdivisions = 4;
 				var image = new Image();
 				image.onload = function () { texture.needsUpdate = true; };
 				image.src = 'textures/hextileprueba.png';
@@ -143,7 +156,7 @@
 
 							//hexoplanetGeometry.mergeVertices();
 				
-				g_hexoplanetGeometry = createHexSphere(5);
+				g_hexoplanetGeometry = createHexSphere(iNumSubdivisions);
 				mesh = new THREE.Mesh( g_hexoplanetGeometry, g_material11 );
 				mesh.position.y = 0;
 				mesh.position.x = 0;
@@ -174,10 +187,11 @@
 				  bShowSSAO : false,
 				  bShowVertexColor : true,
 				  bShowTexture : true,
-				  bNumSubdivisions : 5,
+				  bAnimation : true,
+				  iNumSubdivisions : iNumSubdivisions,
 				  Recreate : function() { 
 				  					scene.remove(mesh);
-				  					g_hexoplanetGeometry = createHexSphere(this.bNumSubdivisions);
+				  					g_hexoplanetGeometry = createHexSphere(this.iNumSubdivisions);
 									mesh = new THREE.Mesh( g_hexoplanetGeometry, g_material11 );
 									mesh.position.y = 0;
 									mesh.position.x = 0;
@@ -233,7 +247,9 @@
 
 				}).name( 'Texture' );;
 
-				gui.add(guiConfig, 'bNumSubdivisions', 1, 7 ).name( 'Subdivisions' ).step(1);
+
+				gui.add(guiConfig, 'iNumSubdivisions', 1, 7 ).name( 'Subdivisions' ).step(1);				
+				gui.add(guiConfig, 'bAnimation').name( 'Animation');
 				gui.add(guiConfig, 'Recreate');
 				
 			}
@@ -245,27 +261,19 @@
 
 				var color, f, f2, f3, p, n, vertexIndex;
 
-				var radius = 200;
-				//var iNumSubdiv = 5;
-				geometry_orig  = new THREE.IcosahedronGeometry( radius, 0 ),
-				geometry_1 = new THREE.IcosahedronGeometry( radius, 0 ),
-				geometry_2 = new THREE.IcosahedronGeometry( radius, 1 );
+				var radius = 200.0;				
 
-		   		var hexoplanetGeometry = new THREE.Geometry();
+		   		var hexoplanetGeometry =  new THREE.IcosahedronGeometry( radius, 0 );
             	hexoplanetGeometry.dynamic = true;
 
-				
+				console.log("geometry_1 = " + hexoplanetGeometry.faces.length);
 
-				console.log("orig = " + geometry_orig.faces.length);
-				console.log("geometry_1 = " + geometry_1.faces.length);
-				console.log("geometry_2 = " + geometry_2.faces.length);
 
-				hexoplanetGeometry.vertices = geometry_1.vertices;
-				hexoplanetGeometry.faces = geometry_1.faces;
 				for(var pataticas = 0; pataticas < iNumSubdiv; pataticas++)
 				{
 
 					var aNeighborsInfo  = new Array();
+					g_HexPlanetData = new Array();
 
 					for ( var i = 0; i < hexoplanetGeometry.faces.length; i ++ )
 					{
@@ -278,7 +286,7 @@
 						for( var j = 0; j < n; j++ )
 						{
 							vertexIndex = f[ faceIndices[ j ] ];
-							p = geometry_1.vertices[ vertexIndex ];
+							p = hexoplanetGeometry.vertices[ vertexIndex ];
 							centerVertex.addSelf(p);
 
 							aCurrentVertexID.push(vertexIndex);
@@ -295,10 +303,10 @@
 							var directionVector = hexoplanetGeometry.vertices[0].clone();
 							directionVector = perpendicular(directionVector);
 
-							var v1 = directionVector.subSelf(geometry_1.vertices[ aCurrentVertexID[id] ]);		
+							var v1 = directionVector.subSelf(hexoplanetGeometry.vertices[ aCurrentVertexID[id] ]);		
 							var nrm = centerVertex.clone();
 							var v2 = centerVertex.clone();
-							v2 = v2.subSelf(geometry_1.vertices[ aCurrentVertexID[id] ]);			
+							v2 = v2.subSelf(hexoplanetGeometry.vertices[ aCurrentVertexID[id] ]);			
 							nrm = nrm.normalize();
 							v1 = v1.normalize();
 							v2 = v2.normalize();
@@ -322,17 +330,26 @@
 						hexoplanetGeometry.vertices[i].normalize();
 						hexoplanetGeometry.vertices[i].multiplyScalar(radius);
 					}
+
 					hexoplanetGeometry.faces.splice(0, hexoplanetGeometry.faces.length);	
 					var colorrrrr = 0;
 					for ( var i = 0; i < aNeighborsInfo.length; i ++ ) 
 					{
 						aNeighborsInfo[i].sort(function(a,b){return a.angle > b.angle})
 						colorrrrr+=1/aNeighborsInfo.length;
-						var random_length = radius + Math.random()*50;
+						var random_length = radius + Math.random()*50.0;
+						
+						var pCurrentHexData = new HexData;
+						pCurrentHexData.fHeight = random_length;						
+						pCurrentHexData.iCenterId = i;
+						pCurrentHexData.vCenter =  hexoplanetGeometry.vertices[i];
 						for ( var j = 0; j < aNeighborsInfo[i].length; j ++ ) 
 						{
-							if (pataticas < (iNumSubdiv - 1))
+							if (pataticas < (iNumSubdiv - 1) )
 							{
+								pCurrentHexData.aFaces.push(hexoplanetGeometry.faces.length);
+								pCurrentHexData.aTopFaces.push(hexoplanetGeometry.faces.length);
+								
 								var newFace = new THREE.Face3(i,aNeighborsInfo[i][j].vertexID,aNeighborsInfo[i][(j + 1) % aNeighborsInfo[i].length].vertexID);
 
 								color = new THREE.Color( 0xffffff );
@@ -367,9 +384,11 @@
 								hexoplanetGeometry.vertices.push(vert3);
 
 								//TOP
+								pCurrentHexData.aFaces.push(hexoplanetGeometry.faces.length);
+								pCurrentHexData.aTopFaces.push(hexoplanetGeometry.faces.length);
 								var newFace2 = new THREE.Face3(hexoplanetGeometry.vertices.length - 3,hexoplanetGeometry.vertices.length - 2,hexoplanetGeometry.vertices.length - 1);
 								color2 = new THREE.Color( 0xffffff );
-								color2.setHSV( colorrrrr, 1.0, 1.0 );
+								color2.setHSV( /*colorrrrr*/0.0, 1.0, 1.0 );
 								newFace2.vertexColors[ 0 ] = color2;
 								newFace2.vertexColors[ 1 ] = color2;
 								newFace2.vertexColors[ 2 ] = color2;
@@ -380,6 +399,8 @@
 										new THREE.UV( 1, 0 )
 									] ); 
 
+								//BASE
+								pCurrentHexData.aFaces.push(hexoplanetGeometry.faces.length);
 								var newFace3 = new THREE.Face3(hexoplanetGeometry.vertices.length - 2,aNeighborsInfo[i][j].vertexID, hexoplanetGeometry.vertices.length - 1);
 								color2 = new THREE.Color( 0xffffff );
 								color2.setHSV( colorrrrr, 1.0, 1.0 );
@@ -393,6 +414,8 @@
 										new THREE.UV( 1, 0 )
 									] ); 
 
+								//BASE 
+								pCurrentHexData.aFaces.push(hexoplanetGeometry.faces.length);
 								var newFace4 = new THREE.Face3(aNeighborsInfo[i][j].vertexID,aNeighborsInfo[i][(j + 1) % aNeighborsInfo[i].length].vertexID,hexoplanetGeometry.vertices.length - 1);
 								color2 = new THREE.Color( 0xffffff );
 								color2.setHSV( colorrrrr, 1.0, 1.0 );
@@ -409,6 +432,8 @@
 
 							}
 						}
+
+						g_HexPlanetData.push(pCurrentHexData);
 
 
 					}
@@ -433,6 +458,24 @@
 //						p *= kPlanetRadius;
 //						(*ti).m_vertPos = p;
 					}*/
+			//	console.log(g_HexPlanetData);
+
+				
+			/*	for ( var i = 0; i < g_HexPlanetData.length; i ++ )
+				{
+					for(var j = 0; j < g_HexPlanetData[i].aTopFaces.length; j++)
+					{
+						var currentFace = hexoplanetGeometry.faces[g_HexPlanetData[i].aTopFaces[j]];
+						
+						hexoplanetGeometry.vertices[currentFace.a].normalize();
+						hexoplanetGeometry.vertices[currentFace.a].multiplyScalar(300);
+						hexoplanetGeometry.vertices[currentFace.b].normalize();
+						hexoplanetGeometry.vertices[currentFace.b].multiplyScalar(300);
+						hexoplanetGeometry.vertices[currentFace.c].normalize();
+						hexoplanetGeometry.vertices[currentFace.c].multiplyScalar(300);
+					}					
+
+				}*/
 
 				hexoplanetGeometry.computeFaceNormals();
 				hexoplanetGeometry.computeVertexNormals();
@@ -464,8 +507,6 @@
 				mouse2D.x = ( event.clientX / window.innerWidth ) * 2 - 1;
 				mouse2D.y =- ( event.clientY / window.innerHeight ) * 2 + 1;
 
-
-
 			}
 
 			function onDocumentMouseDown( event ) {
@@ -493,6 +534,9 @@
 					voxel.updateMatrix();
 					scene.add( voxel );
 				}*/
+
+
+
 			}
 
 			//
@@ -506,18 +550,37 @@
 
 			}
 
+
 			function render() {
 
-				/*camera.position.x += ( mouseX  ) * 0.05;
-				camera.position.y += ( mouseY ) * 0.05;
+				var delta = clock.getDelta();
+				controls.update( delta );
 
-				camera.lookAt( scene.position );*/
+				if (guiConfig.bAnimation)
+				{
+					var sintime = Math.abs(Math.sin(clock.getElapsedTime()));
+					for ( var i = 0; i < g_HexPlanetData.length; i ++ )
+					{
+						var random_length =200 + Math.random()*50;
 
-			var delta = clock.getDelta();
+						for(var j = 0; j < g_HexPlanetData[i].aTopFaces.length; j++)
+						{
+							var currentFace = g_hexoplanetGeometry.faces[g_HexPlanetData[i].aTopFaces[j]];
+							
+							
+							g_hexoplanetGeometry.vertices[currentFace.a].normalize();
+							var escalar = 200.0 + (g_HexPlanetData[i].fHeight - 200.0)*sintime;
+							//console.log(escalar);
+							g_hexoplanetGeometry.vertices[currentFace.a].multiplyScalar(escalar);
+							g_hexoplanetGeometry.vertices[currentFace.b].normalize();
+							g_hexoplanetGeometry.vertices[currentFace.b].multiplyScalar(escalar);
+							g_hexoplanetGeometry.vertices[currentFace.c].normalize();
+							g_hexoplanetGeometry.vertices[currentFace.c].multiplyScalar(escalar);
+						}				
 
-
-
-			controls.update( delta );
+					}
+					g_hexoplanetGeometry.verticesNeedUpdate = true;
+				}
 
 				renderer.render( scene, camera );
 
