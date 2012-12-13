@@ -27,9 +27,20 @@
 				color: #0080ff;
 			}
 
+			.menu { color: #fff; font-weight: bold; font-size: 12px; position: absolute; padding: 16px; top: 64px; width: 128px; }
+			.lbl { color: #fff; padding: 0.25em; width: 128px; text-align: left;}
+
+
 		</style>
 	</head>
 	<body>
+
+		<div id="labels" class="menu">			
+			<div class="lbl" id="lbl_fcs">Faces: XX</div>
+			<div class="lbl" id="lbl_hex">Hexagons: XX</div>
+			<div class="lbl" id="lbl_sel">Selected: </div>
+			<div class="lbl" id="lbl_ngh">Neighbors: </div>
+		</div>
 
 		<div id="container"></div>
 		<div id="info"><a href="http://threejs.org" target="_blank">three.js</a> webgl - hexplanet</div>
@@ -187,7 +198,7 @@
 				  bShowSSAO : false,
 				  bShowVertexColor : true,
 				  bShowTexture : true,
-				  bAnimation : true,
+				  bAnimation : false,
 				  iNumSubdivisions : iNumSubdivisions,
 				  Recreate : function() { 
 				  					scene.remove(mesh);
@@ -196,6 +207,10 @@
 									mesh.position.y = 0;
 									mesh.position.x = 0;
 									scene.add( mesh );			
+
+									 },
+				  Smooth : function() { 
+				  					doSmooth();
 
 									 }
 				};
@@ -251,7 +266,10 @@
 				gui.add(guiConfig, 'iNumSubdivisions', 1, 7 ).name( 'Subdivisions' ).step(1);				
 				gui.add(guiConfig, 'bAnimation').name( 'Animation');
 				gui.add(guiConfig, 'Recreate');
-				
+				gui.add(guiConfig, 'Smooth');
+
+
+
 			}
 
 
@@ -265,9 +283,6 @@
 
 		   		var hexoplanetGeometry =  new THREE.IcosahedronGeometry( radius, 0 );
             	hexoplanetGeometry.dynamic = true;
-
-				console.log("geometry_1 = " + hexoplanetGeometry.faces.length);
-
 
 				for(var pataticas = 0; pataticas < iNumSubdiv; pataticas++)
 				{
@@ -485,6 +500,39 @@
 				hexoplanetGeometry.computeBoundingBox();
 				hexoplanetGeometry.computeBoundingSphere();
 
+				//Calculate neighbors
+				//------------------
+				for ( var i = 0; i < g_HexPlanetData.length; i ++ )
+				{
+					var center = g_HexPlanetData[i].vCenter;
+					var aClosests = new Array();
+
+					for(var j = 0; j < g_HexPlanetData.length; j++)
+					{
+
+						var newEntry = new Object();
+						newEntry.id = j;
+						newEntry.distance = center.distanceToSquared(g_HexPlanetData[j].vCenter);
+						aClosests.push(newEntry);
+					}	
+
+					aClosests.sort(function(a,b){return a.distance > b.distance});
+
+					for(var j = 0; j < g_HexPlanetData[i].aTopFaces.length; j++)
+					{
+						g_HexPlanetData[i].aNeighbors.push(aClosests[j+1].id);
+					}
+					//	console.log(aClosests);
+
+				}
+
+
+
+					//aNeighbors
+				//------------------
+				document.getElementById( "lbl_fcs" ).innerHTML = 'Faces: ' + hexoplanetGeometry.faces.length;
+				document.getElementById( "lbl_hex" ).innerHTML = 'Hexagons: ' + g_HexPlanetData.length;
+
 				return hexoplanetGeometry;
 			}
 			function onWindowResize() {
@@ -513,7 +561,7 @@
 
 				event.preventDefault();
 
-			/*	var ray = projector.pickingRay( mouse2D.clone(), camera );	
+				var ray = projector.pickingRay( mouse2D.clone(), camera );	
 				var intersects = ray.intersectObjects( scene.children );
 
 				console.log(intersects);
@@ -522,8 +570,36 @@
 
 					console.log(intersects[0].face.centroid);
 
+					var faceID = intersects[0].faceIndex;
+					var hexID;
+					for ( var i = 0; i < g_HexPlanetData.length; i ++ )
+					{
+						for(var j = 0; j < g_HexPlanetData[i].aFaces.length; j++)
+						{
 
-					cubeGeo = new THREE.CubeGeometry( 5, 5, 5 );
+							if (g_HexPlanetData[i].aFaces[j] == faceID)
+							{
+								hexID = i;
+								console.log('ENCONTRADO ' + i );
+								break;
+
+							}
+
+						}					
+
+					}
+
+					document.getElementById( "lbl_sel" ).innerHTML = 'Selected: ' + hexID;
+					document.getElementById( "lbl_ngh" ).innerHTML = 'Neighbors: ' + 	g_HexPlanetData[hexID].aNeighbors;
+
+					switch ( event.button ) {
+
+						case 0: g_HexPlanetData[hexID].fHeight+=10; break;
+						case 2: g_HexPlanetData[hexID].fHeight-=10; break;
+
+					}
+					doRefreshGeometry();
+					/*cubeGeo = new THREE.CubeGeometry( 5, 5, 5 );
 					cubeMaterial = new THREE.MeshLambertMaterial( { color: 0x00ff80, ambient: 0x00ff80, shading: THREE.FlatShading } );
 					cubeMaterial.color.setHSV( 0.1, 0.7, 1.0 );
 					cubeMaterial.ambient = cubeMaterial.color;
@@ -532,8 +608,8 @@
 					voxel.position.copy( intersects[0].face.centroid );
 					voxel.matrixAutoUpdate = false;
 					voxel.updateMatrix();
-					scene.add( voxel );
-				}*/
+					scene.add( voxel );*/
+				}
 
 
 
@@ -550,6 +626,60 @@
 
 			}
 
+			function doSmooth() {
+				
+				var newHeights = new Array();
+				for ( var i = 0; i < g_HexPlanetData.length; i ++ )
+				{
+					var neighbordsHeight = 0.0;
+					for(var j = 0; j < g_HexPlanetData[i].aNeighbors.length; j++)
+					{
+						neighbordsHeight+=g_HexPlanetData[g_HexPlanetData[i].aNeighbors[j]].fHeight;
+					}
+					neighbordsHeight = neighbordsHeight / g_HexPlanetData[i].aNeighbors.length;
+					newHeights.push((g_HexPlanetData[i].fHeight + neighbordsHeight) / 2.0);
+				}
+
+				// Assign the smooth heights
+				for ( var i = 0; i < g_HexPlanetData.length; i ++ )
+				{
+					g_HexPlanetData[i].fHeight = newHeights[i];
+				}
+
+				doRefreshGeometry();
+			}
+
+			function doRefreshGeometry()
+			{
+				//Refresh geometry with the new heights
+				for ( var i = 0; i < g_HexPlanetData.length; i ++ )
+				{
+					var random_length =200 + Math.random()*50;
+
+					for(var j = 0; j < g_HexPlanetData[i].aTopFaces.length; j++)
+					{
+						var currentFace = g_hexoplanetGeometry.faces[g_HexPlanetData[i].aTopFaces[j]];					
+						
+						g_hexoplanetGeometry.vertices[currentFace.a].normalize();
+						var escalar = g_HexPlanetData[i].fHeight;
+						g_hexoplanetGeometry.vertices[currentFace.a].multiplyScalar(escalar);
+						g_hexoplanetGeometry.vertices[currentFace.b].normalize();
+						g_hexoplanetGeometry.vertices[currentFace.b].multiplyScalar(escalar);
+						g_hexoplanetGeometry.vertices[currentFace.c].normalize();
+						g_hexoplanetGeometry.vertices[currentFace.c].multiplyScalar(escalar);
+					}				
+
+				}
+				g_hexoplanetGeometry.verticesNeedUpdate = true;
+
+			//	g_hexoplanetGeometry.computeFaceNormals();
+			//	g_hexoplanetGeometry.computeVertexNormals();
+				g_hexoplanetGeometry.computeCentroids();
+			//	g_hexoplanetGeometry.computeTangents();
+
+				g_hexoplanetGeometry.computeBoundingBox();
+				g_hexoplanetGeometry.computeBoundingSphere();
+			}
 
 			function render() {
 
